@@ -1,25 +1,27 @@
-/**
- * 定数と状態管理
- */
-const K_FACTOR = 32; // Eloレーティングの変化係数
-let items = []; // { id, data, score }
+// --- 状態管理 ---
+let items = [];
 let db;
+let currentMatchCount = 0;
+let maxMatches = 0;
+const K_FACTOR = 32;
 
-const screens = {
-    setup: document.getElementById('setup-screen'),
-    battle: document.getElementById('battle-screen'),
-    result: document.getElementById('result-screen')
-};
+// --- DOM要素 ---
+const setupScreen = document.getElementById('setup-screen');
+const battleScreen = document.getElementById('battle-screen');
+const resultScreen = document.getElementById('result-screen');
+const statusMsg = document.getElementById('status-message');
+const settingsArea = document.getElementById('settings-area');
+const maxMatchesInput = document.getElementById('max-matches-input');
+const startBtn = document.getElementById('start-btn');
+const matchCounter = document.getElementById('match-counter');
+const progressBar = document.getElementById('progress-bar');
 
-/**
- * IndexedDB の初期化 (画像保存用)
- */
+// --- 初期化 (IndexedDB) ---
 const initDB = () => {
     return new Promise((resolve) => {
-        const request = indexedDB.open('TierMakerDB', 1);
+        const request = indexedDB.open('TierMakerProDB', 1);
         request.onupgradeneeded = (e) => {
-            db = e.target.result;
-            db.createObjectStore('images', { keyPath: 'id' });
+            e.target.result.createObjectStore('images', { keyPath: 'id' });
         };
         request.onsuccess = (e) => {
             db = e.target.result;
@@ -28,165 +30,184 @@ const initDB = () => {
     });
 };
 
-/**
- * 画像の保存と読み込み
- */
-async function saveItemsToDB(itemsToSave) {
+// --- 画像読み込み時の処理 (新機能2) ---
+function onImagesLoaded(count) {
+    const recommended = count * 3;
+    statusMsg.innerText = `読み込み完了：${count}枚（おすすめの比較回数は${recommended}回です）`;
+    statusMsg.classList.remove('hidden');
+    
+    settingsArea.classList.remove('hidden');
+    maxMatchesInput.value = recommended;
+    startBtn.disabled = false;
+}
+
+// --- 手動アップロード ---
+document.getElementById('file-input').addEventListener('change', async (e) => {
+    const files = Array.from(e.target.files).slice(0, 100);
+    if (files.length < 2) return;
+
+    items = await Promise.all(files.map((file, index) => {
+        return new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onload = (ev) => resolve({
+                id: Date.now() + index,
+                data: ev.target.result,
+                score: 1500
+            });
+            reader.readAsDataURL(file);
+        });
+    }));
+    onImagesLoaded(items.length);
+});
+
+// --- 隠しコマンド機能 (新機能1) ---
+const modal = document.getElementById('command-modal');
+const cmdInput = document.getElementById('command-input');
+
+document.getElementById('open-modal-btn').onclick = () => modal.classList.remove('hidden');
+document.getElementById('modal-close').onclick = () => modal.classList.add('hidden');
+
+document.getElementById('command-submit').onclick = () => {
+    if (cmdInput.value === 'りんご') {
+        alert('プリセット画像を読み込みました！');
+        // images/1.jpg 〜 100.jpg までの連番データを生成
+        items = [];
+        for (let i = 1; i <= 92; i++) {
+            items.push({
+                id: `preset-${i}`,
+                data: `images/${i}.jpg`,
+                score: 1500
+            });
+        }
+        onImagesLoaded(items.length);
+        modal.classList.add('hidden');
+    } else {
+        alert('コードが正しくありません。');
+    }
+};
+
+// --- 比較開始 ---
+startBtn.onclick = async () => {
+    maxMatches = parseInt(maxMatchesInput.value);
+    currentMatchCount = 0;
+    localStorage.setItem('tier_max_matches', maxMatches);
+    await saveToDB();
+    showBattle();
+};
+
+async function saveToDB() {
     const tx = db.transaction('images', 'readwrite');
     const store = tx.objectStore('images');
-    for (const item of itemsToSave) {
-        store.put(item);
-    }
-    localStorage.setItem('tier_items_meta', JSON.stringify(
-        itemsToSave.map(item => ({ id: item.id, score: item.score }))
-    ));
+    for (const item of items) store.put(item);
+    localStorage.setItem('tier_meta', JSON.stringify(items.map(i => ({id: i.id, score: i.score}))));
+    localStorage.setItem('tier_curr_count', currentMatchCount);
 }
 
-async function loadItemsFromDB() {
-    return new Promise((resolve) => {
-        const meta = JSON.parse(localStorage.getItem('tier_items_meta') || '[]');
-        if (meta.length === 0) return resolve([]);
-
-        const tx = db.transaction('images', 'readonly');
-        const store = tx.objectStore('images');
-        const getAll = store.getAll();
-        getAll.onsuccess = () => resolve(getAll.result);
-    });
-}
-
-/**
- * UI制御
- */
-const fileInput = document.getElementById('file-input');
-const fileCount = document.getElementById('file-count');
-const startBtn = document.getElementById('start-btn');
-const resumeBtn = document.getElementById('resume-btn');
-
-fileInput.addEventListener('change', async (e) => {
-    const files = Array.from(e.target.files).slice(0, 100);
-    fileCount.innerText = `${files.length} 枚選択中`;
-    
-    if (files.length >= 2) {
-        startBtn.disabled = false;
-        items = await Promise.all(files.map((file, index) => {
-            return new Promise((resolve) => {
-                const reader = new FileReader();
-                reader.onload = (ev) => resolve({
-                    id: Date.now() + index,
-                    data: ev.target.result,
-                    score: 1500
-                });
-                reader.readAsDataURL(file);
-            });
-        }));
-    }
-});
-
-startBtn.addEventListener('click', async () => {
-    await saveItemsToDB(items);
-    showScreen('battle');
+function showBattle() {
+    setupScreen.classList.add('hidden');
+    battleScreen.classList.remove('hidden');
+    updateProgressUI();
     nextMatch();
-});
-
-resumeBtn.addEventListener('click', async () => {
-    items = await loadItemsFromDB();
-    showScreen('battle');
-    nextMatch();
-});
-
-function showScreen(screenName) {
-    Object.values(screens).forEach(s => s.classList.add('hidden'));
-    screens[screenName].classList.remove('hidden');
 }
 
-/**
- * 比較ロジック (Elo Rating)
- */
-let currentLeft, currentRight;
+// --- バトルロジック (新機能3統合) ---
+let leftItem, rightItem;
 
 function nextMatch() {
-    if (items.length < 2) return;
-    
-    // ランダムに2つ選ぶ
-    let idx1 = Math.floor(Math.random() * items.length);
-    let idx2 = Math.floor(Math.random() * items.length);
-    while (idx1 === idx2) idx2 = Math.floor(Math.random() * items.length);
+    // 上限に達したら自動終了
+    if (currentMatchCount >= maxMatches) {
+        showResults();
+        return;
+    }
 
-    currentLeft = items[idx1];
-    currentRight = items[idx2];
+    let i1 = Math.floor(Math.random() * items.length);
+    let i2 = Math.floor(Math.random() * items.length);
+    while (i1 === i2) i2 = Math.floor(Math.random() * items.length);
 
-    document.getElementById('left-img').src = currentLeft.data;
-    document.getElementById('right-img').src = currentRight.data;
+    leftItem = items[i1];
+    rightItem = items[i2];
+    document.getElementById('left-img').src = leftItem.data;
+    document.getElementById('right-img').src = rightItem.data;
 }
 
 function updateRating(winner, loser) {
-    const expectedWin = 1 / (1 + Math.pow(10, (loser.score - winner.score) / 400));
-    
-    winner.score += K_FACTOR * (1 - expectedWin);
-    loser.score += K_FACTOR * (0 - (1 - expectedWin));
+    const expected = 1 / (1 + Math.pow(10, (loser.score - winner.score) / 400));
+    winner.score += K_FACTOR * (1 - expected);
+    loser.score += K_FACTOR * (0 - expected);
 
-    saveItemsToDB(items);
+    currentMatchCount++;
+    updateProgressUI();
+    saveToDB();
     nextMatch();
 }
 
-document.getElementById('left-card').addEventListener('click', () => updateRating(currentLeft, currentRight));
-document.getElementById('right-card').addEventListener('click', () => updateRating(currentRight, currentLeft));
+function updateProgressUI() {
+    matchCounter.innerText = `${currentMatchCount} / ${maxMatches}`;
+    const percent = (currentMatchCount / maxMatches) * 100;
+    progressBar.style.width = `${percent}%`;
+}
 
-/**
- * ティア表生成
- */
-document.getElementById('show-results-btn').addEventListener('click', () => {
-    showScreen('result');
+document.getElementById('left-card').onclick = () => updateRating(leftItem, rightItem);
+document.getElementById('right-card').onclick = () => updateRating(rightItem, leftItem);
+
+// --- 結果表示 ---
+function showResults() {
+    battleScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+    
     const sorted = [...items].sort((a, b) => b.score - a.score);
-    const total = sorted.length;
-
-    const tiers = [
-        { label: 'S', class: 's-tier', limit: Math.ceil(total * 0.1) },
-        { label: 'A', class: 'a-tier', limit: Math.ceil(total * 0.3) }, // 10% + 20%
-        { label: 'B', class: 'b-tier', limit: Math.ceil(total * 0.7) }, // 30% + 40%
-        { label: 'C', class: 'c-tier', limit: Math.ceil(total * 0.9) },
-        { label: 'D', class: 'd-tier', limit: total }
+    const n = sorted.length;
+    const tierConfig = [
+        { label: 'S', cls: 's-tier', end: Math.ceil(n * 0.1) },
+        { label: 'A', cls: 'a-tier', end: Math.ceil(n * 0.3) },
+        { label: 'B', cls: 'b-tier', end: Math.ceil(n * 0.7) },
+        { label: 'C', cls: 'c-tier', end: Math.ceil(n * 0.9) },
+        { label: 'D', cls: 'd-tier', end: n }
     ];
 
-    const tierListContainer = document.getElementById('tier-list');
-    tierListContainer.innerHTML = '';
-
-    let currentIndex = 0;
-    tiers.forEach(tier => {
+    const container = document.getElementById('tier-list');
+    container.innerHTML = '';
+    let curr = 0;
+    tierConfig.forEach(t => {
+        if (curr >= n) return;
         const row = document.createElement('div');
-        row.className = `tier-row ${tier.class}`;
-        row.innerHTML = `<div class="tier-label">${tier.label}</div><div class="tier-items"></div>`;
-        const itemsContainer = row.querySelector('.tier-items');
-
-        while (currentIndex < tier.limit && currentIndex < total) {
+        row.className = `tier-row ${t.cls}`;
+        row.innerHTML = `<div class="tier-label">${t.label}</div><div class="tier-items"></div>`;
+        const itemBox = row.querySelector('.tier-items');
+        while (curr < t.end && curr < n) {
             const img = document.createElement('img');
-            img.src = sorted[currentIndex].data;
+            img.src = sorted[curr].data;
             img.className = 'tier-item-img';
-            itemsContainer.appendChild(img);
-            currentIndex++;
+            itemBox.appendChild(img);
+            curr++;
         }
-        if (itemsContainer.children.length > 0) {
-            tierListContainer.appendChild(row);
-        }
+        if (itemBox.children.length > 0) container.appendChild(row);
     });
-});
+}
 
-// リセット機能
-document.getElementById('reset-btn').addEventListener('click', () => {
-    if (confirm('全てのデータを削除して最初からやり直しますか？')) {
+document.getElementById('show-results-btn').onclick = showResults;
+
+document.getElementById('reset-btn').onclick = () => {
+    if (confirm('リセットしますか？')) {
         localStorage.clear();
-        const tx = db.transaction('images', 'readwrite');
-        tx.objectStore('images').clear();
         location.reload();
     }
-});
+};
 
-// 起動時
+// --- 起動時の復元 ---
 window.onload = async () => {
     await initDB();
-    const saved = await loadItemsFromDB();
-    if (saved.length > 0) {
-        resumeBtn.style.display = 'inline-block';
-        fileCount.innerText = `${saved.length} 枚の保存済みデータがあります`;
+    const meta = JSON.parse(localStorage.getItem('tier_meta'));
+    if (meta) {
+        const tx = db.transaction('images', 'readonly');
+        const getAll = tx.objectStore('images').getAll();
+        getAll.onsuccess = () => {
+            items = getAll.result;
+            currentMatchCount = parseInt(localStorage.getItem('tier_curr_count') || 0);
+            maxMatches = parseInt(localStorage.getItem('tier_max_matches') || 0);
+            document.getElementById('resume-btn').style.display = 'inline-block';
+        };
     }
 };
+
+document.getElementById('resume-btn').onclick = () => showBattle();
