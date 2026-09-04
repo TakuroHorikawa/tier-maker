@@ -74,7 +74,7 @@ document.getElementById('command-submit').onclick = () => {
         items = [];
     for ( let i = 1928 ; i <= 2025 ; i++) {
     // 抜けている画像の番号をここで指定してスキップする
-    if ([1964, 1971, 2000, 2014, 2015].includes(i)) {
+    if ([1964, 1971, 2000, 2014, 2015, 2020].includes(i)) {
         continue;
     }
     items.push({ id : `preset-${i}` , data : `IMG_${i}.jpeg` , score : 1500 });
