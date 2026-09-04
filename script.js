@@ -72,8 +72,12 @@ document.getElementById('command-submit').onclick = () => {
         alert('プリセット画像を読み込みました！');
         // images/1.jpg 〜 100.jpg までの連番データを生成
         items = [];
-       for ( let i = 1928 ; i <= 2025 ; i++) {
-items.push({ id : `preset-${i}` , data : `IMG_${i}.jpeg` , score : 1500 });
+    for ( let i = 1928 ; i <= 2025 ; i++) {
+    // 抜けている画像の番号をここで指定してスキップする
+    if ([1964, 1971, 2000, 2014, 2015].includes(i)) {
+        continue;
+    }
+    items.push({ id : `preset-${i}` , data : `IMG_${i}.jpeg` , score : 1500 });
 }
         onImagesLoaded(items.length);
         modal.classList.add('hidden');
