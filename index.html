@@ -3,13 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Tier Maker</title>
+    <title>Image Tier Maker Pro</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>Image Tier Maker</h1>
+            <div class="header-top">
+                <h1>Image Tier Maker</h1>
+                <button id="open-modal-btn" class="btn-small">コード</button>
+            </div>
             <p>2つの画像を比較して最強のティア表を作ろう</p>
         </header>
 
@@ -20,15 +23,26 @@
                 <input type="file" id="file-input" multiple accept="image/*">
                 <button class="btn-primary" onclick="document.getElementById('file-input').click()">ファイルを選択</button>
             </div>
-            <div id="file-count">0 枚選択中</div>
+
+            <div id="status-message" class="info-msg hidden"></div>
+
+            <div id="settings-area" class="settings-card hidden">
+                <label for="max-matches-input">合計比較回数:</label>
+                <input type="number" id="max-matches-input" min="1" value="0">
+                <p class="hint">※回数が多いほど精度が上がります</p>
+            </div>
+
             <button id="start-btn" class="btn-large" disabled>比較を開始する</button>
             <button id="resume-btn" class="btn-secondary" style="display:none;">前回の続きから再開</button>
         </section>
 
         <!-- 比較画面 -->
         <section id="battle-screen" class="screen hidden">
-            <div class="progress-container">
-                <div id="progress-bar"></div>
+            <div class="battle-header">
+                <div id="match-counter">0 / 0</div>
+                <div class="progress-container">
+                    <div id="progress-bar"></div>
+                </div>
             </div>
             <div class="battle-container">
                 <div class="card" id="left-card">
@@ -40,7 +54,7 @@
                 </div>
             </div>
             <div class="controls">
-                <button id="show-results-btn" class="btn-secondary">結果を見る</button>
+                <button id="show-results-btn" class="btn-secondary">途中で結果を見る</button>
                 <button id="reset-btn" class="btn-danger">リセット</button>
             </div>
         </section>
@@ -48,12 +62,23 @@
         <!-- 結果画面 -->
         <section id="result-screen" class="screen hidden">
             <h2>最終ティア表</h2>
-            <div id="tier-list">
-                <!-- ティア行がここに追加される -->
-            </div>
+            <div id="tier-list"></div>
             <button onclick="location.reload()" class="btn-primary">最初からやり直す</button>
         </section>
     </div>
+
+    <!-- 隠しコマンド用モーダル -->
+    <div id="command-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>隠しコマンド入力</h3>
+            <input type="text" id="command-input" placeholder="コードを入力...">
+            <div class="modal-buttons">
+                <button id="command-submit" class="btn-primary">送信</button>
+                <button id="modal-close" class="btn-secondary">閉じる</button>
+            </div>
+        </div>
+    </div>
+
     <script src="script.js"></script>
 </body>
 </html>
