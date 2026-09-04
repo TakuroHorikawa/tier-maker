@@ -73,7 +73,7 @@ document.getElementById('command-submit').onclick = () => {
         // images/1.jpg 〜 100.jpg までの連番データを生成
         items = [];
        for ( let i = 1928 ; i <= 2025 ; i++) {
-    items.push({ id : `preset-${i}` , data : `images/IMG_${i}.PNG` , score : 1500 });
+items.push({ id : `preset-${i}` , data : `IMG_${i}.jpeg` , score : 1500 });
 }
         onImagesLoaded(items.length);
         modal.classList.add('hidden');
