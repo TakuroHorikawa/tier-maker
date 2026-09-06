@@ -82,14 +82,20 @@ document.getElementById('command-submit').onclick = () => {
     } else if (cmdInput.value === 'ばなな') {
         alert('ばななの画像を読み込みました！');
         items = [];
-        // 2061から2126まで読み込む
+        
         for (let i = 2061; i <= 2126; i++) {
-            // 抜けている番号をスキップ
+            // 1. 存在しない6枚をスキップ
             if ([2075, 2086, 2087, 2088, 2090, 2098].includes(i)) {
                 continue;
             }
-            items.push({ id: `banana-${i}`, data: `IMG_${i}.jpeg`, score: 1500 });
+            
+            // 2. 拡張子が .webp になっている14枚をリスト化して判定
+            const webpList = [2067, 2073, 2078, 2092, 2102, 2103, 2107, 2112, 2114, 2115, 2116, 2120, 2122, 2125];
+            let ext = webpList.includes(i) ? 'webp' : 'jpeg';
+
+            items.push({ id: `banana-${i}`, data: `IMG_${i}.${ext}`, score: 1500 });
         }
+        
         onImagesLoaded(items.length);
         modal.classList.add('hidden');
 
