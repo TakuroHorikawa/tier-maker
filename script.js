@@ -63,24 +63,36 @@ document.getElementById('file-input').addEventListener('change', async (e) => {
 // --- 隠しコマンド機能 (新機能1) ---
 const modal = document.getElementById('command-modal');
 const cmdInput = document.getElementById('command-input');
-
 document.getElementById('open-modal-btn').onclick = () => modal.classList.remove('hidden');
 document.getElementById('modal-close').onclick = () => modal.classList.add('hidden');
 
 document.getElementById('command-submit').onclick = () => {
     if (cmdInput.value === 'りんご') {
         alert('プリセット画像を読み込みました！');
-        // images/1.jpg 〜 100.jpg までの連番データを生成
         items = [];
-    for ( let i = 1928 ; i <= 2025 ; i++) {
-    // 抜けている画像の番号をここで指定してスキップする
-    if ([1964, 1971, 2000, 2014, 2015, 2020].includes(i)) {
-        continue;
-    }
-    items.push({ id : `preset-${i}` , data : `IMG_${i}.jpeg` , score : 1500 });
-}
+        for (let i = 1928; i <= 2025; i++) {
+            if ([1964, 1971, 2000, 2014, 2015, 2020].includes(i)) {
+                continue;
+            }
+            items.push({ id: `preset-${i}`, data: `IMG_${i}.jpeg`, score: 1500 });
+        }
         onImagesLoaded(items.length);
         modal.classList.add('hidden');
+
+    } else if (cmdInput.value === 'ばなな') {
+        alert('ばななの画像を読み込みました！');
+        items = [];
+        // 【ここを修正】始まりの番号と、終わりの番号を入れる（例として2100から2165としています）
+        for (let i = 2100; i <= 2165; i++) {
+            // 【ここを修正】抜けている番号をカンマ区切りで入れる（例として2110と2142を入れています）
+            if ([2110, 2142].includes(i)) {
+                continue;
+            }
+            items.push({ id: `banana-${i}`, data: `IMG_${i}.jpeg`, score: 1500 });
+        }
+        onImagesLoaded(items.length);
+        modal.classList.add('hidden');
+
     } else {
         alert('コードが正しくありません。');
     }
