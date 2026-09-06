@@ -82,10 +82,10 @@ document.getElementById('command-submit').onclick = () => {
     } else if (cmdInput.value === 'ばなな') {
         alert('ばななの画像を読み込みました！');
         items = [];
-        // 【ここを修正】始まりの番号と、終わりの番号を入れる（例として2100から2165としています）
-        for (let i = 2100; i <= 2165; i++) {
-            // 【ここを修正】抜けている番号をカンマ区切りで入れる（例として2110と2142を入れています）
-            if ([2110, 2142].includes(i)) {
+        // 2061から2126まで読み込む
+        for (let i = 2061; i <= 2126; i++) {
+            // 抜けている番号をスキップ
+            if ([2075, 2086, 2087, 2088, 2090, 2098].includes(i)) {
                 continue;
             }
             items.push({ id: `banana-${i}`, data: `IMG_${i}.jpeg`, score: 1500 });
